@@ -1,0 +1,1199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SPCX lock-ups: When shares become free to sell</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#0a0e14;
+    --panel:#0f1620;
+    --panel2:#131c28;
+    --line:#22303f;
+    --hair:#1a2531;
+    --star:#e8eef5;
+    --dim:#8fa3b8;
+    --muted:#5f7186;
+    --plasma:#ff6a3d;
+    --plasma-dim:#c24a26;
+    --ion:#4db8ff;
+    --ion-dim:#2b7fbf;
+    --locked:#3a4a5c;
+    --free:#4db8ff;
+    --gold:#f2c14e;
+    --ok:#5ecb9e;
+    --warn:#ff6a3d;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{
+    margin:0;
+    background:
+      radial-gradient(1200px 600px at 78% -8%, rgba(77,184,255,.06), transparent 60%),
+      radial-gradient(900px 500px at 10% 4%, rgba(255,106,61,.05), transparent 55%),
+      var(--ink);
+    color:var(--star);
+    font-family:"Space Grotesk","Inter",system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
+    line-height:1.6;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:920px;margin:0 auto;padding:0 20px 56px}
+  .mono{font-family:"IBM Plex Mono",ui-monospace,Menlo,monospace}
+
+  /* HERO */
+  header.hero{
+    padding:64px 0 30px;
+    border-bottom:1px solid var(--hair);
+    position:relative;
+  }
+  .eyebrow{
+    font-family:"IBM Plex Mono",monospace;
+    font-size:11px;letter-spacing:.32em;text-transform:uppercase;
+    color:var(--ion);
+    display:flex;gap:10px;align-items:center;
+  }
+  .eyebrow::before{content:"";width:26px;height:1px;background:var(--ion)}
+  h1{
+    font-size:clamp(30px,6vw,52px);
+    line-height:1.04;
+    font-weight:700;
+    margin:18px 0 10px;
+    letter-spacing:-.02em;
+  }
+  h1 .tick{color:var(--plasma)}
+  .sub{color:var(--dim);font-size:17px;max-width:62ch}
+  .pubdate{
+    margin:14px 0 8px;
+    font-family:"IBM Plex Mono",monospace;font-size:12px;
+    color:var(--muted);letter-spacing:.02em;
+  }
+  .stamp{
+    margin-top:22px;font-family:"IBM Plex Mono",monospace;font-size:12px;
+    color:var(--muted);display:flex;flex-wrap:wrap;gap:6px 18px;
+  }
+  .stamp b{color:var(--star);font-weight:500}
+  /* hero notes: audience, disclosure, disclaimer */
+  .note{
+    margin:10px 0 0;padding:12px 16px;
+    background:rgba(15,22,32,.7);
+    border:1px solid var(--hair);
+    border-left:2px solid var(--muted);
+    border-radius:0 8px 8px 0;
+    max-width:72ch;
+  }
+  .note:first-of-type{margin-top:22px}
+  .note .d-label{
+    display:block;margin:0 0 5px;
+    font-family:"IBM Plex Mono",monospace;font-size:10px;font-weight:600;
+    letter-spacing:.16em;text-transform:uppercase;
+  }
+  .note p{
+    margin:0;font-size:12.5px;line-height:1.55;color:var(--dim);max-width:none;
+  }
+  .note a{
+    color:var(--ion);text-decoration:none;border-bottom:1px dotted rgba(77,184,255,.45);
+    font-weight:500;
+  }
+  .note a:hover{color:var(--star);border-bottom-color:var(--ion)}
+  .note-aud{
+    border-left-color:#8fd0ff;
+    background:linear-gradient(90deg,rgba(77,184,255,.1),rgba(15,22,32,.55));
+  }
+  .note-aud .d-label{color:#8fd0ff}
+  .note-aud p{color:#cfe6f7;font-family:"IBM Plex Mono",monospace;font-size:12px}
+  .note-ai{
+    border-left-color:#f2c14e;
+    background:linear-gradient(90deg,rgba(242,193,78,.08),rgba(15,22,32,.55));
+  }
+  .note-ai .d-label{color:#f2c14e}
+  .note-disc{
+    border-left-color:var(--muted);
+  }
+  .note-disc .d-label{color:var(--muted)}
+
+  /* the float bar: the signature */
+  .floatviz{
+    margin:28px 0 6px;
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-radius:14px;
+    padding:22px 22px 18px;
+  }
+  .floatviz h3{
+    margin:0 0 4px;font-size:13px;font-family:"IBM Plex Mono",monospace;
+    letter-spacing:.14em;text-transform:uppercase;color:var(--dim);font-weight:500;
+  }
+  .floatviz .cap{color:var(--muted);font-size:12.5px;margin:0 0 18px}
+  .floatviz .cap a{
+    color:var(--ion);text-decoration:none;border-bottom:1px dotted rgba(77,184,255,.45);
+    font-weight:500;
+  }
+  .floatviz .cap a:hover{color:var(--star)}
+  /* stepped float meter: one row per milestone, segmented by tranche */
+  .meter{display:flex;flex-direction:column;gap:11px}
+  .step{display:grid;grid-template-columns:118px 1fr 54px;align-items:center;gap:14px}
+  .step .when{
+    font-family:"IBM Plex Mono",monospace;font-size:11px;line-height:1.3;
+    color:var(--dim);text-align:right;
+  }
+  .step .when b{display:block;color:var(--star);font-size:12px;font-weight:600;letter-spacing:.01em}
+  .track{
+    position:relative;height:26px;border-radius:6px;overflow:hidden;display:flex;
+    background:repeating-linear-gradient(90deg,#141d29,#141d29 6px,#111925 6px,#111925 12px);
+    border:1px solid var(--line);
+  }
+  .fseg{
+    height:100%;
+    border-right:1px solid rgba(10,14,20,.55);
+  }
+  .fseg:last-child{border-right:none}
+  .fseg.s-ipo{background:#4db8ff}
+  .fseg.s-aug{background:#5ba97d}
+  .fseg.s-fall{background:#f2c14e}
+  .fseg.s-musk{background:repeating-linear-gradient(45deg,#3a4a5c,#3a4a5c 5px,#2f3d4d 5px,#2f3d4d 10px)}
+  .step .pct{
+    font-family:"IBM Plex Mono",monospace;font-size:15px;font-weight:600;
+    color:var(--star);text-align:left;
+  }
+  .step.future .when,.step.future .pct{opacity:.62}
+  .barkey{display:flex;flex-wrap:wrap;gap:9px 18px;margin-top:18px;font-size:12px;color:var(--dim);
+    padding-top:15px;border-top:1px solid var(--hair)}
+  .barkey i{display:inline-block;width:11px;height:11px;border-radius:3px;margin-right:7px;vertical-align:-1px}
+  .k-free{background:#4db8ff}.k-aug{background:#5ba97d}.k-fall{background:#f2c14e}
+  .k-musk{background:repeating-linear-gradient(45deg,#3a4a5c,#3a4a5c 4px,#2f3d4d 4px,#2f3d4d 8px)}
+  .floatviz .srcnote{
+    margin:14px 0 0;font-size:12px;color:var(--muted);line-height:1.5;max-width:72ch;
+  }
+  .floatviz .srcnote a{color:var(--ion);text-decoration:none;border-bottom:1px dotted rgba(77,184,255,.45)}
+  .floatviz .srcnote a:hover{color:var(--star)}
+
+  /* Dec 8 lock-status and fragment pies */
+  .pie-block{margin:28px 0 6px}
+  .pie-grid{
+    display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;margin-top:14px;
+  }
+  @media (max-width:920px){.pie-grid{grid-template-columns:1fr}}
+  .pie-card{
+    background:var(--panel);border:1px solid var(--line);border-radius:14px;
+    padding:18px 16px 14px;
+  }
+  .pie-card h3{
+    margin:0 0 4px;font-size:12px;font-family:"IBM Plex Mono",monospace;
+    letter-spacing:.12em;text-transform:uppercase;color:var(--dim);font-weight:500;
+  }
+  .pie-card .cap{
+    color:var(--muted);font-size:12px;margin:0 0 14px;line-height:1.5;
+    min-height:3em; /* reserve caption band so pies share a row on desktop */
+  }
+  .pie{
+    width:min(100%,200px);aspect-ratio:1;border-radius:50%;margin:0 auto 14px;
+    border:1px solid var(--line);box-shadow:inset 0 0 0 1px rgba(10,14,20,.35);
+  }
+  .pie-lock{
+    background:conic-gradient(
+      #6aaed8 0 40%,
+      #3a4a5c 40% 100%
+    );
+  }
+  .pie-locked-split{
+    background:conic-gradient(
+      #3a4a5c 0 76.67%,
+      #5a6d82 76.67% 100%
+    );
+  }
+  .pie-frag{
+    background:conic-gradient(
+      #4db8ff 0 12.2%,
+      #5ba97d 12.2% 29.3%,
+      rgba(255,152,99,.85) 29.3% 60.9%,
+      #d1491f 60.9% 85.3%,
+      #f2c14e 85.3% 91.4%,
+      #2e7d54 91.4% 100%
+    );
+  }
+  /* eligible-40% bar, segments weighted by stake, colored by sell odds */
+  .oddscard{max-width:620px}
+  .oddscard .track{height:26px;margin:2px 0 14px}
+  .oddssub{
+    margin:0 0 14px;font-size:11.5px;line-height:1.5;color:var(--muted);max-width:none;
+  }
+  .oddssub b{color:var(--dim);font-weight:600}
+  .pie-key small{color:var(--muted);font-family:"IBM Plex Mono",monospace;font-size:10px}
+  .rs-lo{background:#5ecb9e}
+  .rs-lomed{background:#b9c46a}
+  .rs-medhi{background:#f79b46}
+  .rs-hi{background:#ff6a3d}
+  .rs-unk{background:repeating-linear-gradient(90deg,#39485a,#39485a 2px,#28323f 2px,#28323f 7px)}
+  .pie-key{
+    display:flex;flex-direction:column;gap:7px;font-size:12px;color:var(--dim);margin:0;
+    padding:0;list-style:none;
+  }
+  .pie-key li{display:flex;align-items:flex-start;gap:8px;line-height:1.35}
+  .pie-key i{
+    flex:0 0 auto;display:inline-block;width:11px;height:11px;border-radius:3px;margin-top:3px;
+  }
+  .pie-key b{color:var(--star);font-weight:600;font-family:"IBM Plex Mono",monospace;font-size:11.5px}
+  .pie-note{margin:12px 2px 0;font-size:12px;color:var(--muted);line-height:1.5;max-width:78ch}
+
+  /* CSS-only eligible-float line chart */
+  .linechart{
+    display:grid;grid-template-columns:36px 1fr;grid-template-rows:1fr auto;
+    gap:8px 10px;margin:8px 0 4px;min-height:220px;
+  }
+  .lc-y{
+    grid-row:1;grid-column:1;display:flex;flex-direction:column;justify-content:space-between;
+    font-family:"IBM Plex Mono",monospace;font-size:10px;color:var(--muted);text-align:right;
+    padding:2px 0;
+  }
+  .lc-plot{
+    grid-row:1;grid-column:2;position:relative;height:200px;
+    border-left:1px solid var(--line);border-bottom:1px solid var(--line);
+    overflow:visible;
+    background:
+      linear-gradient(to top, transparent 39.5%, rgba(242,193,78,.12) 39.5%, rgba(242,193,78,.12) 40.5%, transparent 40.5%),
+      repeating-linear-gradient(to top, transparent, transparent 49px, rgba(34,48,63,.55) 49px, rgba(34,48,63,.55) 50px);
+  }
+  .lc-plot svg{
+    position:absolute;inset:0;width:100%;height:100%;overflow:visible;pointer-events:none;
+  }
+  .lc-plot svg .lc-line{
+    fill:none;stroke:var(--ion);stroke-width:1.8;stroke-linejoin:round;stroke-linecap:round;
+    vector-effect:non-scaling-stroke;
+  }
+  .lc-plot svg .lc-area{
+    fill:url(#lcFill);stroke:none;opacity:.55;
+  }
+  .lc-pt{
+    position:absolute;width:14px;height:14px;margin:-7px 0 0 -7px;
+    border-radius:50%;background:var(--ink);border:2px solid var(--ion);
+    cursor:default;z-index:2;
+  }
+  .lc-pt::after{
+    content:"";position:absolute;inset:-10px;border-radius:50%;
+  }
+  .lc-pt .lc-tip{
+    position:absolute;left:50%;bottom:calc(100% + 10px);transform:translateX(-50%) translateY(4px);
+    min-width:148px;padding:8px 10px;border-radius:8px;
+    background:var(--panel2);border:1px solid var(--line);
+    font-family:"IBM Plex Mono",monospace;font-size:11px;line-height:1.45;color:var(--dim);
+    text-align:left;white-space:normal;
+    opacity:0;visibility:hidden;pointer-events:none;
+    transition:opacity .15s ease, transform .15s ease, visibility .15s;
+    box-shadow:0 8px 24px rgba(0,0,0,.35);
+  }
+  .lc-pt .lc-tip b{display:block;color:var(--star);font-weight:600;font-size:12px;margin-bottom:2px}
+  .lc-pt .lc-tip i{display:block;color:var(--ion);font-style:normal;font-weight:600;margin-top:3px}
+  .lc-pt:hover,.lc-pt:focus-visible{border-color:var(--plasma);background:var(--panel2);outline:none;z-index:3}
+  .lc-pt:hover .lc-tip,.lc-pt:focus-visible .lc-tip{
+    opacity:1;visibility:visible;transform:translateX(-50%) translateY(0);
+  }
+  .lc-pt.p1{left:0%;bottom:5%}
+  .lc-pt.p2{left:15.07%;bottom:12%}
+  .lc-pt.p3{left:49.04%;bottom:40%}
+  .lc-pt.p4{left:100%;bottom:97%}
+  .lc-pt.p1 .lc-tip,.lc-pt.p2 .lc-tip{transform:translateX(0) translateY(4px);left:0}
+  .lc-pt.p1:hover .lc-tip,.lc-pt.p1:focus-visible .lc-tip,
+  .lc-pt.p2:hover .lc-tip,.lc-pt.p2:focus-visible .lc-tip{transform:translateX(0) translateY(0)}
+  .lc-pt.p4 .lc-tip{left:auto;right:0;transform:translateX(0) translateY(4px)}
+  .lc-pt.p4:hover .lc-tip,.lc-pt.p4:focus-visible .lc-tip{transform:translateX(0) translateY(0)}
+  .lc-evt-line{
+    position:absolute;top:0;bottom:0;width:0;left:14.52%;
+    border-left:1px dashed rgba(255,106,61,.55);
+    pointer-events:none;z-index:1;
+  }
+  .lc-evt-lab{
+    position:absolute;top:6px;left:6px;
+    font-family:"IBM Plex Mono",monospace;font-size:10px;line-height:1.25;
+    color:var(--plasma);white-space:nowrap;font-weight:600;
+  }
+  .lc-evt-lab i{display:block;font-style:normal;font-weight:500;font-size:9px;opacity:.9}
+  .lc-x{
+    grid-row:2;grid-column:2;position:relative;height:36px;
+    font-family:"IBM Plex Mono",monospace;font-size:10px;color:var(--muted);
+  }
+  .lc-xl{
+    position:absolute;top:6px;transform:translateX(-50%);
+    text-align:center;line-height:1.25;white-space:nowrap;
+  }
+  .lc-xl b{display:block;color:var(--dim);font-weight:600}
+  .lc-xl i{display:block;font-style:normal;font-size:9px;color:var(--muted)}
+  .lc-xl.x-start{left:0%;transform:none;text-align:left}
+  .lc-xl.x-end{left:100%;transform:translateX(-100%);text-align:right}
+  .lc-xl.x-aug6{left:15.07%}
+  .lc-xl.x-dec{left:49.04%}
+  @media (max-width:560px){
+    .linechart{grid-template-columns:28px 1fr;min-height:180px}
+    .lc-plot{height:160px}
+    .lc-x{height:52px}
+    .lc-pt .lc-tip{min-width:130px;font-size:10.5px}
+    .lc-xl{font-size:9px}
+    .lc-xl i{display:none}
+    .lc-xl.x-aug6{top:28px}
+    .lc-evt-lab{font-size:9px;top:4px;left:4px}
+  }
+  @media (prefers-reduced-motion:reduce){
+    .lc-pt .lc-tip{transition:none}
+  }
+
+  .vet{font-family:"IBM Plex Mono",monospace;font-size:10px;font-weight:600;letter-spacing:.04em;
+    padding:2px 7px;border-radius:4px;white-space:nowrap}
+  .v-pri{background:rgba(94,203,158,.14);color:#77d8b2;border:1px solid rgba(94,203,158,.4)}
+  .v-cross{background:rgba(77,184,255,.12);color:#7cc9ff;border:1px solid rgba(77,184,255,.35)}
+  .v-cond{background:rgba(242,193,78,.12);color:#f2c14e;border:1px solid rgba(242,193,78,.35)}
+  .v-est{background:rgba(143,163,184,.1);color:var(--dim);border:1px solid var(--line)}
+  @media (max-width:520px){
+    .step{grid-template-columns:1fr;gap:5px;position:relative;padding-top:2px}
+    .step .when{text-align:left}
+    .step .when b{display:inline;margin-right:8px}
+    .step .pct{position:absolute;right:0;top:0}
+    .track{margin-top:2px}
+  }
+
+  /* SECTIONS */
+  section{padding:44px 0;border-bottom:1px solid var(--hair)}
+  .sec-h{display:flex;align-items:baseline;gap:14px;margin:0 0 8px}
+  .sec-n{font-family:"IBM Plex Mono",monospace;color:var(--plasma);font-size:13px;font-weight:600}
+  h2{font-size:24px;font-weight:600;margin:0;letter-spacing:-.01em}
+  /* grabbable deep-link anchor on headings and charts */
+  .anchor{
+    font-family:"IBM Plex Mono",monospace;color:var(--muted);text-decoration:none;
+    font-size:.62em;font-weight:600;opacity:0;transition:opacity .15s,color .15s;
+    border:none;align-self:center;line-height:1;user-select:none;
+  }
+  .anchor::before{content:"#"}
+  .sec-h:hover .anchor,.pie-card:hover .anchor,.floatviz:hover .anchor,
+  .src h2:hover .anchor,.anchor:focus-visible{opacity:.55}
+  .anchor:hover{opacity:1;color:var(--ion)}
+  h3 .anchor{font-size:.85em}
+  @media (hover:none){.anchor{opacity:.4}}
+  .lead{color:var(--dim);max-width:70ch;margin:6px 0 18px;line-height:1.55}
+  .lead + .reasons{margin-top:0}
+  p{max-width:72ch}
+  p.body{color:#c2d0de}
+
+  /* inline term chip */
+  .term{
+    border-bottom:1px dotted var(--ion);
+    cursor:help;color:var(--star);font-weight:500;
+  }
+  .def{
+    display:block;margin:14px 0;padding:13px 16px;
+    background:var(--panel);border-left:2px solid var(--ion);
+    border-radius:0 8px 8px 0;font-size:14px;color:#b7c6d6;max-width:72ch;
+  }
+  .def b{color:var(--ion);font-weight:600}
+
+  /* callout */
+  .flag{
+    margin:18px 0;padding:15px 18px;border-radius:10px;
+    background:linear-gradient(180deg,rgba(255,106,61,.08),rgba(255,106,61,.03));
+    border:1px solid rgba(255,106,61,.28);
+    font-size:14.5px;color:#e9d3c8;max-width:72ch;
+  }
+  .flag b{color:var(--plasma)}
+  .flag.cool{
+    background:linear-gradient(180deg,rgba(77,184,255,.07),rgba(77,184,255,.02));
+    border-color:rgba(77,184,255,.28);color:#cfe2f2;
+  }
+  .flag.cool b{color:var(--ion)}
+
+  /* claim with numbered reasons */
+  .claim{margin:20px 0;max-width:72ch}
+  .claim .stmt{
+    font-size:16px;color:#dbe6f1;font-weight:500;margin:0 0 14px;line-height:1.5;
+  }
+  .claim .stmt b{color:var(--star);font-weight:600}
+  .reasons{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:11px}
+  .reasons li{
+    position:relative;padding:12px 15px 12px 46px;
+    background:var(--panel);border:1px solid var(--hair);border-radius:10px;
+    font-size:14.5px;color:#c2d0de;line-height:1.55;
+  }
+  .reasons li .rn{
+    position:absolute;left:14px;top:12px;
+    font-family:"IBM Plex Mono",monospace;font-size:13px;font-weight:600;
+    color:var(--plasma);
+  }
+  .reasons li b{color:var(--star);font-weight:600}
+  .reasons li i{color:var(--ion);font-style:italic}
+
+  /* Jul 6 entry candle figure */
+  .candlefig{
+    margin:16px 0;padding:14px 14px 12px;max-width:36ch;
+    background:var(--panel);border:1px solid var(--line);border-radius:10px;
+  }
+  .candlefig h4{
+    margin:0 0 10px;font-family:"IBM Plex Mono",monospace;font-size:10.5px;
+    letter-spacing:.12em;text-transform:uppercase;color:var(--dim);font-weight:500;
+  }
+  .cf-row{display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+  .cf-plot{position:relative;flex:0 0 56px;width:56px;height:72px}
+  .cf-line{position:absolute;left:0;right:0;border-top:1px dashed rgba(77,184,255,.55)}
+  .cf-candle{position:absolute;left:22px;width:12px}
+  .cf-wick{position:absolute;left:50%;width:2px;margin-left:-1px;background:#d95b38}
+  .cf-body{position:absolute;left:0;right:0;background:#d95b38;border-radius:2px}
+  .cf-ohlc{
+    flex:1 1 12ch;min-width:0;font-family:"IBM Plex Mono",monospace;
+    font-size:11px;color:var(--dim);line-height:1.55;
+  }
+  .cf-ohlc b{color:var(--star);font-weight:600}
+  .cf-ohlc .c{color:var(--ion)}
+  @media (max-width:420px){
+    .candlefig{max-width:100%;padding:12px}
+    .cf-ohlc{flex:1 1 100%;font-size:10.5px}
+  }
+
+  /* TABLES */
+  .tbl-scroll{overflow-x:auto;margin:20px 0 6px;border-radius:12px;border:1px solid var(--line)}
+  .tbl-scroll:has(table.wrap){overflow:hidden}
+  table{border-collapse:collapse;width:100%;font-size:13.5px;min-width:560px}
+  table.wrap{min-width:0}
+  table.wrap th,table.wrap td{
+    white-space:normal;overflow-wrap:anywhere;word-break:break-word;
+  }
+  table.wrap.prices th:first-child,
+  table.wrap.prices td.num{white-space:nowrap}
+  thead th{
+    background:var(--panel2);text-align:left;padding:12px 14px;
+    font-family:"IBM Plex Mono",monospace;font-size:11px;letter-spacing:.08em;
+    text-transform:uppercase;color:var(--dim);font-weight:600;
+    border-bottom:1px solid var(--line);white-space:nowrap;
+  }
+  tbody td{padding:12px 14px;border-bottom:1px solid var(--hair);color:#c8d5e2;vertical-align:top}
+  tbody tr:last-child td{border-bottom:none}
+  tbody tr:hover td{background:rgba(77,184,255,.03)}
+  td.num{font-family:"IBM Plex Mono",monospace;color:var(--star);white-space:nowrap}
+  td.num.wrap{white-space:normal;overflow-wrap:anywhere;word-break:break-word;max-width:16ch;line-height:1.45}
+  .vet-tbl th:nth-child(4),.vet-tbl td:nth-child(4){min-width:24ch;width:30%}
+  .mini-h{font-family:"IBM Plex Mono",monospace;font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--dim);font-weight:500;margin:26px 0 2px}
+  details.datapoints{margin:26px 0 0}
+  details.datapoints > summary{
+    list-style:none;cursor:pointer;user-select:none;
+    font-family:"IBM Plex Mono",monospace;font-size:11px;letter-spacing:.14em;
+    text-transform:uppercase;color:var(--dim);font-weight:500;margin:0 0 10px;
+  }
+  details.datapoints > summary::-webkit-details-marker{display:none}
+  details.datapoints > summary::before{
+    content:"+ ";color:var(--ion);font-weight:600;letter-spacing:0;
+  }
+  details.datapoints[open] > summary::before{content:"− "}
+  details.datapoints > summary:hover{color:var(--star)}
+  .pill{
+    display:inline-block;font-family:"IBM Plex Mono",monospace;font-size:10.5px;
+    padding:2px 8px;border-radius:20px;font-weight:600;letter-spacing:.04em;white-space:nowrap;
+  }
+  .p-lock{background:rgba(58,74,92,.5);color:#9db2c6;border:1px solid #3a4a5c}
+  .p-free{background:rgba(77,184,255,.14);color:#7cc9ff;border:1px solid rgba(77,184,255,.35)}
+  .p-hi{background:rgba(255,106,61,.14);color:#ff8f6d;border:1px solid rgba(255,106,61,.4)}
+  .p-lo{background:rgba(94,203,158,.13);color:#77d8b2;border:1px solid rgba(94,203,158,.38)}
+  .p-med{background:rgba(242,193,78,.13);color:#f2c14e;border:1px solid rgba(242,193,78,.38)}
+  .cap-t{font-size:12px;color:var(--muted);margin:8px 2px 0}
+  .cap-t.cap-full{max-width:none}
+
+  /* timeline */
+  .tl{margin:22px 0 4px;position:relative;padding-left:22px}
+  .tl::before{content:"";position:absolute;left:5px;top:6px;bottom:6px;width:2px;
+    background:linear-gradient(180deg,#4db8ff 0%,#4db8ff 5%,#5ba97d 9%,#5ba97d 17%,#885844 33%,#885844 43%,#5ba97d 48%,#5ba97d 56%,#d1491f 64%,#d1491f 73%,#f2c14e 76%,#f2c14e 83%,#3a4a5c 88%,#3a4a5c 100%)}
+  .ev{position:relative;padding:0 0 22px 20px}
+  .ev::before{content:"";position:absolute;left:-22px;top:4px;width:12px;height:12px;
+    border-radius:50%;background:var(--ink);border:2px solid var(--ion)}
+  .ev.hot::before{box-shadow:0 0 0 4px rgba(91,169,125,.15)}
+  .ev.c-aug::before{border-color:#5ba97d}
+  .ev.c-cond::before{border:2px dashed #5ba97d}
+  .ev.c-drip::before{border-color:#885844}
+  .ev.c-q3::before{border-color:#d1491f}
+  .ev.c-dec::before{border-color:#f2c14e;background:#2e7d54}
+  .ev.c-musk::before{border-color:#3a4a5c;background:#2f3d4d}
+  .ev .d{font-family:"IBM Plex Mono",monospace;font-size:12px;color:var(--plasma);font-weight:600}
+  .ev .t{font-weight:600;margin:2px 0 3px}
+  .ev .x{color:var(--dim);font-size:14px;max-width:64ch}
+  :root{--bw:clamp(240px,44vw,540px)}
+  .evbar{display:flex;align-items:center;gap:12px;margin-top:9px}
+  .evbar .track{height:14px;flex:0 0 var(--bw)}
+  .evpct{
+    font-family:"IBM Plex Mono",monospace;font-size:11.5px;color:var(--star);
+    font-weight:600;white-space:nowrap;
+  }
+  .evpct small{color:var(--muted);font-weight:400}
+  @media (max-width:560px){
+    .evbar{flex-wrap:wrap;gap:5px}
+    .evbar .track{flex:1 1 100%}
+    .evpct{white-space:normal}
+  }
+  .fseg.ghost{
+    background:transparent;border:1px dashed rgba(91,169,125,.7);
+    box-sizing:border-box;border-radius:2px;
+  }
+  .fseg.blockrest{background:rgba(242,193,78,.28)}
+  .fseg.dripseg{background:rgba(255,152,99,.5)}
+  .fseg.q3seg{background:#d1491f}
+  .fseg.condone{background:#2e7d54}
+  .k-condone{background:#2e7d54}
+  .k-drip{background:#885844}
+  .k-q3{background:#d1491f}
+  .k-sched{background:rgba(242,193,78,.28)}
+  .k-cond{background:transparent;border:1px dashed rgba(91,169,125,.7);box-sizing:border-box}
+
+  /* compact inline lens at an event */
+  .minilens{margin:10px 0 2px;width:clamp(240px,44vw,540px);max-width:100%}
+  .minilens .track{height:10px;margin:3px 0 2px}
+  .minilens .tag{
+    display:block;font-family:"IBM Plex Mono",monospace;font-size:10.5px;
+    color:var(--dim);margin-bottom:7px;
+  }
+  .minilens .tag b{color:#5ba97d;font-weight:600}
+  .minilens .why{
+    display:block;font-style:italic;color:var(--muted);font-size:12.5px;
+    line-height:1.55;margin-top:4px;max-width:62ch;
+  }
+
+  /* sources */
+  .src{padding:44px 0 0}
+  .src h2{margin-bottom:6px}
+  .src .lead{margin-bottom:18px}
+  .srcgrid{display:grid;gap:10px}
+  .srcrow{
+    display:flex;gap:14px;align-items:baseline;padding:13px 16px;
+    background:var(--panel);border:1px solid var(--hair);border-radius:10px;
+    transition:.2s;
+  }
+  .srcrow:hover{border-color:var(--line);background:var(--panel2)}
+  .srctag{
+    font-family:"IBM Plex Mono",monospace;font-size:10px;font-weight:600;
+    padding:3px 8px;border-radius:5px;white-space:nowrap;letter-spacing:.05em;
+  }
+  .t-primary{background:rgba(94,203,158,.14);color:#77d8b2;border:1px solid rgba(94,203,158,.4)}
+  .t-news{background:rgba(77,184,255,.12);color:#7cc9ff;border:1px solid rgba(77,184,255,.35)}
+  .t-study{background:rgba(242,193,78,.12);color:#f2c14e;border:1px solid rgba(242,193,78,.35)}
+  .srcrow a{color:var(--star);text-decoration:none;font-weight:500;font-size:14px;word-break:break-word}
+  .srcrow a:hover{color:var(--ion)}
+  .srcrow .m{display:block;color:var(--muted);font-size:12px;margin-top:2px}
+  .srcrow .q{
+    display:block;margin-top:7px;padding:7px 11px;
+    border-left:2px solid var(--line);background:rgba(20,29,41,.5);
+    border-radius:0 6px 6px 0;color:#9fb2c4;font-size:12.5px;font-style:italic;
+  }
+
+  footer{padding:36px 0 0;color:var(--muted);font-size:12.5px;text-align:center}
+  footer p{max-width:none}
+  footer .mono{color:var(--dim)}
+  footer a{color:var(--dim);text-decoration:none;border-bottom:1px dotted var(--muted)}
+  footer a:hover{color:var(--ion);border-bottom-color:var(--ion)}
+
+  @media (max-width:560px){
+    header.hero{padding:44px 0 24px}
+    .seg span{font-size:10px}
+    .stamp{font-size:11px}
+  }
+  @media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="hero">
+    <div class="eyebrow">Space Exploration Technologies Corp · Nasdaq: SPCX</div>
+    <h1>SPCX lock-ups: When shares become free to sell <span class="tick">▾</span></h1>
+    <p class="pubdate">Published Date: 22 July, 2026</p>
+    <p class="sub">Only about 5% of SpaceX's shares trade freely today. The locked 95% unlocks on scheduled dates through 2027.</p>
+    <aside class="note note-aud">
+      <span class="d-label">Audience target</span>
+      <p>Novice traders</p>
+    </aside>
+    <aside class="note note-ai">
+      <span class="d-label">AI disclosure</span>
+      <p>Claude draft. Human and rules-based agent review.</p>
+    </aside>
+    <aside class="note note-disc" role="note">
+      <span class="d-label">Disclaimer</span>
+      <p>Analysis of public filings and reporting. Not investment advice. Unlock dates are based on SEC filings and company announcements. Sell pressure depends on who holds each block, and that part is estimate. Dollar figures use the $135 IPO price for scale. Cited sources: <a href="#references">References</a>.</p>
+    </aside>
+  </header>
+
+  <!-- 01 BASICS -->
+  <section id="basics">
+    <div class="sec-h"><span class="sec-n">01</span><h2>Quick read</h2><a class="anchor" href="#basics" aria-label="Link to this section"></a></div>
+
+    <p class="mini-h">Key prices</p>
+    <div class="tbl-scroll">
+      <table class="wrap prices">
+        <thead>
+          <tr><th>Price</th><th>What it marks</th></tr>
+        </thead>
+        <tbody>
+          <tr><td class="num">$135.00</td><td>IPO price. Basis for allocants and the employee directed-share slice.</td></tr>
+          <tr><td class="num">~$150</td><td>Jun 12 opening print. Basis for day-one open-market buyers.</td></tr>
+          <tr><td class="num">$160.42</td><td>Jul 6 close. Entry for Nasdaq-100 trackers, per inclusion rules.</td></tr>
+          <tr><td class="num">$175.50</td><td>Trigger for the conditional ~3.5% release, 30% above the IPO price.</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <p class="mini-h">Key dates</p>
+    <div class="tbl-scroll">
+      <table class="wrap">
+        <thead>
+          <tr><th>When</th><th>What</th></tr>
+        </thead>
+        <tbody>
+          <tr><td class="num">Jun 11</td><td>IPO priced.</td></tr>
+          <tr><td class="num">Jun 12</td><td>First trade. ~5% of shares floating.</td></tr>
+          <tr><td class="num">Jul 7</td><td>Joins the Nasdaq-100.</td></tr>
+          <tr><td class="num">Jul 22–Aug 4</td><td>Window for the price trigger on the conditional release.</td></tr>
+          <tr><td class="num">Aug 4</td><td>First quarterly report, after the close.</td></tr>
+          <tr><td class="num">Aug 6</td><td>First unlock, 911.5M shares, ~7% of the company.</td></tr>
+          <tr><td class="num">Dec 8</td><td>Standard lock-up fully expires. Tradable float reaches ~40%.</td></tr>
+          <tr><td class="num">Feb–Aug 2027</td><td>Extended investors' ~14% unlocks in six stages, first ~Feb after the Q4 report.</td></tr>
+          <tr><td class="num">Jun 12, 2027</td><td>Musk's ~46% unlocks, the 366-day founder cliff.</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <p class="mini-h">Terms for novices</p>
+
+    <span class="def"><b>Lock-up.</b> A contractual "you can't sell yet" on pre-IPO shareholders (employees, early investors, the founder), so insider selling can't hit the market all at once on day one. It expires on set dates. Buying on the open market after the debut, you were never locked.</span>
+
+    <span class="def"><b>Float.</b> The freely tradable shares, as a portion of the whole company. SpaceX has ~13B total shares but only ~5% floated at IPO. The rest sits locked. Small float chasing heavy demand is a big part of <i>why</i> the price spiked. Widen the float and, all else equal, price falls.</span>
+
+    <span class="def"><b>S-1 / 424(b)(4).</b> The SEC registration filing (S-1) and the final priced prospectus (424(b)(4)) SpaceX filed to go public. Filed under legal liability, so they beat any news summary. Every share count and lock-up term here comes from them. On SEC EDGAR under CIK 1181412.</span>
+  </section>
+
+  <!-- 02 THE ANALYSIS -->
+  <section id="analysis">
+    <div class="sec-h"><span class="sec-n">02</span><h2>The eligible supply</h2><a class="anchor" href="#analysis" aria-label="Link to this section"></a></div>
+    <p class="lead">The full schedule is spelled out in the prospectus, in its Underwriting and Shares Eligible for Future Sale sections.</p>
+
+    <p class="body">Right now demand is chasing that ~5% float. That imbalance does much of the work of holding the price up. The lock-ups widen the float on a set schedule. The first release alone is <b>bigger than the entire slice currently trading</b>, which is a big part of why the word "flood" gets used.</p>
+
+    <div class="flag"><b>The core number.</b> The first release frees ~911.5M shares. At the $135 IPO price that's ~<b>$123B</b> of stock that <i>could</i> hit the market, versus the ~<b>$86B</b> tradable as of mid-July. One release is larger than the whole existing float.</div>
+
+    <div class="claim">
+      <p class="stmt"><b>Two things stand between eligible supply and actual selling.</b></p>
+      <ol class="reasons">
+        <li><span class="rn">1</span><b>It's staggered, unlike the single 180-day cliff most IPOs use.</b> Shares release in stages across months, so the market can price each one as it comes instead of absorbing one shock all at once.</li>
+        <li><span class="rn">2</span><b>The biggest locked holders are the least likely to sell.</b> The founder and the big long-term backers (like Google, in for years as a strategic bet) face no calendar pressure to exit. Employees and older venture funds usually do sell into their windows, so those smaller tranches track pressure more tightly.</li>
+      </ol>
+    </div>
+
+    <div class="flag cool"><b>Not every unlocked share is equal supply.</b> An unlock date sets how much <i>can</i> trade. Pressure still depends on who holds it. Diversifying employees and older venture stakes usually sell into their windows, so those drips are real supply. August volume is the first read on which mix showed up. The earnings report is just the starting gun written into the lock-up contract, not a sell signal for every holder.</div>
+
+    <p class="body">A <b>price trigger</b> adds supply into strength. A bonus batch of ~455.8M shares unlocks <i>only if</i> the stock closes at or above <b>$175.50</b> on 5 of the 10 trading days ending with the Aug 4 report. So a rally doesn't reward holders for waiting. It <i>releases more supply</i> right where they'd want to sell. The higher it climbs, the more stock the structure lets loose. The trigger sits 30% above the IPO price by construction, and with the stock trading below $135 since mid-July into that final 10-session window, it is effectively dead.</p>
+  </section>
+
+  <!-- 03 TIMELINE -->
+  <section id="timeline">
+    <div class="sec-h"><span class="sec-n">03</span><h2>The unlock calendar</h2><a class="anchor" href="#timeline" aria-label="Link to this section"></a></div>
+    <p class="lead">Dates tied to filings and reputable reporting. SpaceX confirmed on Jul 20 that it reports Q2 results after the close on Aug 4.</p>
+
+    <div class="tl">
+      <div class="ev">
+        <div class="d">JUN 12, 2026</div>
+        <div class="t">Debut · public float opens at ~5%</div>
+        <div class="x">555,555,555 Class A shares (the regular kind the public buys and trades) sold at $135.00, rising to ~639M once the underwriters exercised their overallotment, including a 5%-of-offering employee directed-share slice with no lock-up. Only this offering trades freely at first, about 5% of all shares (~$86B).</div>
+        <div class="evbar"><div class="track"><div class="fseg s-ipo" style="width:5%"></div></div><span class="evpct">~5%</span></div>
+      </div>
+      <div class="ev hot c-aug">
+        <div class="d">AUG 6, 2026 · 2 trading days after the Aug 4 report</div>
+        <div class="t">First release frees ~7% of the company</div>
+        <div class="x">Two trading days after SpaceX's debut quarterly report, holders on the standard lock-up can sell 20% of their shares, a fifth of the locked block. That's 911.5M shares, ~7% of the whole company, ~$123B at the $135 IPO price, more than the whole slice trading today. Added to the ~5% already floating, tradable becomes ~12%.</div>
+        <div class="evbar"><div class="track"><div class="fseg s-ipo" style="width:5%"></div><div class="fseg s-aug" style="width:7%"></div></div><span class="evpct">~12% <small>(5+7)</small></span></div>
+        <div class="minilens">
+          <div class="track"><div class="fseg s-ipo" style="width:5%"></div><div class="fseg s-aug" style="width:7%"></div><div class="fseg blockrest" style="width:28%"></div><div class="fseg s-musk" style="width:60%"></div></div>
+          <span class="tag">against all 13.1B shares: <b>7%</b> · float becomes 5+7 = 12%</span>
+          <div class="track"><div class="fseg s-aug" style="width:20%"></div><div class="fseg blockrest" style="width:80%"></div></div>
+          <span class="tag">against the 4.56B locked shares: <b>20%</b> · the number filings and news quote</span>
+          <span class="why">What matters for supply is how many new shares can now be sold out of everything that exists, and that number is 7%, not the contract's 20%.</span>
+        </div>
+      </div>
+      <div class="ev c-drip">
+        <div class="d">AUG–OCT 2026</div>
+        <div class="t">A steady ~2.4–2.5% drip every 2 to 3 weeks adds ~12.9% by late October</div>
+        <div class="x">Employee stock releases in five chunks of 7% of the locked block on Aug 20, Sep 9, Sep 24, Oct 9 and Oct 24 (319.0M shares each for the first two, 328.4M for the last three, ~2.4–2.5% of the company per step), plus 59.1M affiliate shares on Sep 10. That's ~1.68B shares in all, ~12.9% of the company. Together with the Q3 release, this trickle does most of the work of moving the float from ~12% toward ~40% by Dec 8, so how each chunk gets absorbed is the running read on real selling pressure.</div>
+        <div class="evbar"><div class="track"><div class="fseg s-ipo" style="width:5%"></div><div class="fseg s-aug" style="width:7%"></div><div class="fseg dripseg" style="width:2.4%"></div><div class="fseg dripseg" style="width:2.4%"></div><div class="fseg dripseg" style="width:0.5%"></div><div class="fseg dripseg" style="width:2.5%"></div><div class="fseg dripseg" style="width:2.5%"></div><div class="fseg dripseg" style="width:2.5%"></div></div><span class="evpct">+~12.9% <small>in 5 steps + an affiliate slice, to late Oct</small></span></div>
+      </div>
+      <div class="ev c-cond">
+        <div class="d">CONDITIONAL · pre-earnings window</div>
+        <div class="t">A dormant bonus ~3.5% fires only at or above $175.50</div>
+        <div class="x">455.8M shares (~3.5% of the company) release early only if SPCX closes at or above $175.50 on 5 of the 10 trading days ending with the Aug 4 report, so the window is now Jul 22 through Aug 4. With the stock below the $135 IPO price since mid-July, firing would take a rally of more than 30% inside that window, so the trigger is effectively dead. This is the calendar's only price-conditional piece, and it changes timing, never total. Unfired, the shares stay in the standard 180-day group and are fully free by Dec 8 at the latest. Every other event in this calendar happens on schedule at any price.</div>
+        <div class="evbar"><div class="track"><div class="fseg s-ipo" style="width:5%"></div><div class="fseg s-aug" style="width:7%"></div><div class="fseg dripseg" style="width:2.4%"></div><div class="fseg dripseg" style="width:2.4%"></div><div class="fseg dripseg" style="width:0.5%"></div><div class="fseg dripseg" style="width:2.5%"></div><div class="fseg dripseg" style="width:2.5%"></div><div class="fseg dripseg" style="width:2.5%"></div><div class="fseg ghost" style="width:3.5%"></div></div><span class="evpct">+3.5% <small>only if price triggers</small></span></div>
+      </div>
+      <div class="ev c-q3">
+        <div class="d">LATE OCT / NOV 2026</div>
+        <div class="t">Q3 earnings unlocks ~10% of the company, the biggest single chunk</div>
+        <div class="x">The company's second earnings report as a public firm triggers the largest one-day release, 28% of the locked block. That's up to ~1.28B shares, ~10% of the company.</div>
+        <div class="evbar"><div class="track"><div class="fseg s-ipo" style="width:5%"></div><div class="fseg s-aug" style="width:7%"></div><div class="fseg dripseg" style="width:2.4%"></div><div class="fseg dripseg" style="width:2.4%"></div><div class="fseg dripseg" style="width:0.5%"></div><div class="fseg dripseg" style="width:2.5%"></div><div class="fseg dripseg" style="width:2.5%"></div><div class="fseg dripseg" style="width:2.5%"></div><div class="fseg ghost" style="width:3.5%"></div><div class="fseg q3seg" style="width:10%"></div></div><span class="evpct">+10% <small>in one day</small></span></div>
+      </div>
+      <div class="ev c-dec">
+        <div class="d">DEC 8, 2026</div>
+        <div class="t">180-day lock-up fully expires → float ~40%</div>
+        <div class="x">Everything still held under the standard lock-up comes free. The balance of the block not covered by the earlier releases is 328.4M shares, ~2.5% of the company, and the unfired conditional piece (~3.5%) frees with it, up to 797.6M shares in all per the prospectus. The full block is ~4.56B shares, 35% of the company. With the ~5% IPO float, tradable reaches ~40%.</div>
+        <div class="evbar"><div class="track"><div class="fseg s-ipo" style="width:5%"></div><div class="fseg s-aug" style="width:7%"></div><div class="fseg dripseg" style="width:2.4%"></div><div class="fseg dripseg" style="width:2.4%"></div><div class="fseg dripseg" style="width:0.5%"></div><div class="fseg dripseg" style="width:2.5%"></div><div class="fseg dripseg" style="width:2.5%"></div><div class="fseg dripseg" style="width:2.5%"></div><div class="fseg q3seg" style="width:10%"></div><div class="fseg s-fall" style="width:2.5%"></div><div class="fseg condone" style="width:3.5%"></div></div><span class="evpct">~40%</span></div>
+      </div>
+      <div class="ev c-musk">
+        <div class="d">FEB–AUG 2027</div>
+        <div class="t">Extended-investor ladder + the founder cliff free the last ~60%</div>
+        <div class="x">Extended investors' ~14% (1.76B shares) releases in six stages: 20% two trading days after the Q4 2026 report (~Feb), 10% on Mar 18, 20% after the Q1 report, 10% on May 17, 20% on Jun 12, and the rest after the Q2 2027 report (~Aug). Musk's ~46% (6.07B shares per the prospectus cover) frees all at once on Jun 12, 2027, the 366th day, with no early release.</div>
+        <div class="evbar"><div class="track"><div class="fseg s-ipo" style="width:5%"></div><div class="fseg s-aug" style="width:7%"></div><div class="fseg dripseg" style="width:2.4%"></div><div class="fseg dripseg" style="width:2.4%"></div><div class="fseg dripseg" style="width:0.5%"></div><div class="fseg dripseg" style="width:2.5%"></div><div class="fseg dripseg" style="width:2.5%"></div><div class="fseg dripseg" style="width:2.5%"></div><div class="fseg q3seg" style="width:10%"></div><div class="fseg s-fall" style="width:2.5%"></div><div class="fseg condone" style="width:3.5%"></div><div class="fseg s-musk" style="width:59.7%"></div></div><span class="evpct">100% <small>by ~Aug 2027</small></span></div>
+      </div>
+    </div>
+    <div class="barkey">
+      <span><i class="k-free"></i>Public float at IPO</span>
+      <span><i class="k-aug"></i>First unlock (post-Q2)</span>
+      <span><i class="k-drip"></i>Scheduled employee releases (~2.4–2.5% steps)</span>
+      <span><i class="k-sched"></i>Rest of the locked block (in the lens)</span>
+      <span><i class="k-q3"></i>Q3's single chunk</span>
+      <span><i class="k-fall"></i>Balance of the block, free by Dec 8</span>
+      <span><i class="k-cond"></i>Price-conditional early piece</span>
+      <span><i class="k-condone"></i>Conditional piece, free by Dec 8 at the latest</span>
+      <span><i class="k-musk"></i>Musk + extended investors, across 2027</span>
+    </div>
+
+    <div class="floatviz" id="float-path">
+      <h3>Eligible float path <a class="anchor" href="#float-path" aria-label="Link to this chart"></a></h3>
+      <p class="cap">Share of the company free to trade after each release. That is capacity. How much hits the tape still depends on who holds each tranche. Hover a point for the figure. Milestones match <a href="#datapoints">Datapoints</a> below.</p>
+      <div class="linechart" aria-label="Eligible float over time from IPO to mid-2027">
+        <div class="lc-y" aria-hidden="true"><span>100%</span><span>75%</span><span>50%</span><span>25%</span><span>0%</span></div>
+        <div class="lc-plot">
+          <svg viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+            <defs>
+              <linearGradient id="lcFill" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stop-color="rgba(77,184,255,.28)"/>
+                <stop offset="100%" stop-color="rgba(77,184,255,0)"/>
+              </linearGradient>
+            </defs>
+            <polygon class="lc-area" points="0,95 15.07,88 49.04,60 100,3 100,100 0,100"/>
+            <polyline class="lc-line" points="0,95 15.07,88 49.04,60 100,3"/>
+          </svg>
+          <div class="lc-evt-line" aria-hidden="true"><span class="lc-evt-lab">Aug 4<i>report</i></span></div>
+          <span class="lc-pt p1" tabindex="0">
+            <span class="lc-tip"><b>Jun 12, 2026</b>IPO public float<i>~5%</i>555.6M base shares</span>
+          </span>
+          <span class="lc-pt p2" tabindex="0">
+            <span class="lc-tip"><b>Aug 6, 2026</b>+911.5M first unlock<i>~12%</i>T+2 after Aug 4 report</span>
+          </span>
+          <span class="lc-pt p3" tabindex="0">
+            <span class="lc-tip"><b>Dec 8, 2026</b>180-day standard expiry<i>~40%</i>Reuters cross-check</span>
+          </span>
+          <span class="lc-pt p4" tabindex="0">
+            <span class="lc-tip"><b>Jun 12, 2027</b>Musk cliff + extended stages<i>~97%</i>last ~3% after the Q2 2027 report</span>
+          </span>
+        </div>
+        <div class="lc-x" aria-hidden="true">
+          <span class="lc-xl x-start"><b>Jun 12</b><i>2026</i></span>
+          <span class="lc-xl x-aug6"><b>Aug 6</b><i>unlock</i></span>
+          <span class="lc-xl x-dec"><b>Dec 8</b><i>180-day</i></span>
+          <span class="lc-xl x-end"><b>Jun 12</b><i>2027</i></span>
+        </div>
+      </div>
+    </div>
+
+    <details class="datapoints" id="datapoints">
+      <summary>Datapoints</summary>
+    <div class="tbl-scroll">
+      <table class="vet-tbl">
+        <thead>
+          <tr><th>When</th><th>Eligible float</th><th>Δ shares</th><th>What frees</th><th>Vet</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="num">Jun 12, 2026</td>
+            <td class="num">~4.2–5%</td>
+            <td class="num">555.6M base<br>~639M w/ overallot (~$86B @ $135)</td>
+            <td>IPO public float only</td>
+            <td><span class="vet v-pri">PRIMARY</span><br><span style="font-size:11px;color:var(--muted)">424(b)(4); 555.6M ÷ 13.076B = 4.25%</span></td>
+          </tr>
+          <tr>
+            <td class="num">Aug 6, 2026</td>
+            <td class="num">~12%</td>
+            <td class="num">+911.5M (~7% of co)<br>~$123B @ $135</td>
+            <td>20% of early-release pool, T+2 after Aug 4 Q2 report</td>
+            <td><span class="vet v-cross">CROSS-CHECK</span><br><span style="font-size:11px;color:var(--muted)">Reuters size + prospectus 20% rule + IR Aug 4 date → Aug 6</span></td>
+          </tr>
+          <tr>
+            <td class="num">Jul 22–Aug 4</td>
+            <td class="num">+~3.5% if fires</td>
+            <td class="num">+455.8M</td>
+            <td>Extra 10% only if close ≥ $175.50 on 5 of 10 sessions into Aug 4</td>
+            <td><span class="vet v-cond">CONDITIONAL</span><br><span style="font-size:11px;color:var(--muted)">Prospectus 30% trigger; dead while &lt; $135</span></td>
+          </tr>
+          <tr>
+            <td class="num wrap">Aug 20 · Sep 9 · Sep 24 · Oct 9 · Oct 24</td>
+            <td class="num">+~2.4–2.5% each</td>
+            <td class="num">7% of pool each (319.0M ×2, 328.4M ×3)</td>
+            <td>Days 70 / 90 / 105 / 120 / 135 after the Jun 11 prospectus date</td>
+            <td><span class="vet v-pri">PRIMARY</span><br><span style="font-size:11px;color:var(--muted)">Prospectus early-release ladder; dates stated in filing</span></td>
+          </tr>
+          <tr>
+            <td class="num">Sep 10, 2026</td>
+            <td class="num">+~0.5%</td>
+            <td class="num">59.1M</td>
+            <td>Affiliate-held shares released before day 91, sellable from the 91st day</td>
+            <td><span class="vet v-pri">PRIMARY</span><br><span style="font-size:11px;color:var(--muted)">Prospectus ladder, affiliate row</span></td>
+          </tr>
+          <tr>
+            <td class="num">T+2 after Q3 report</td>
+            <td class="num">+~10%</td>
+            <td class="num">~28% of pool (~1.28B)</td>
+            <td>Second earnings cliff (date TBD until Q3 is set)</td>
+            <td><span class="vet v-pri">PRIMARY</span><br><span style="font-size:11px;color:var(--muted)">Prospectus %; calendar date still estimate</span></td>
+          </tr>
+          <tr>
+            <td class="num">Dec 8, 2026</td>
+            <td class="num">~40%</td>
+            <td class="num">328.4M (797.6M if conditional never fired)</td>
+            <td>Full 180-day standard lock-up expiry. Unfired conditional piece frees here</td>
+            <td><span class="vet v-pri">PRIMARY</span><br><span style="font-size:11px;color:var(--muted)">Prospectus ladder; Reuters ~40% cross-check</span></td>
+          </tr>
+          <tr>
+            <td class="num wrap">Feb–Aug 2027</td>
+            <td class="num">+~14% in stages</td>
+            <td class="num">1.76B (20/10/20/10/20% + rest)</td>
+            <td>Extended investors: post-Q4 report · Mar 18 · post-Q1 report · May 17 · Jun 12 · post-Q2 2027 report</td>
+            <td><span class="vet v-pri">PRIMARY</span><br><span style="font-size:11px;color:var(--muted)">Prospectus extended-lock-up ladder</span></td>
+          </tr>
+          <tr>
+            <td class="num">Jun 12, 2027</td>
+            <td class="num">→ ~97%, 100% by ~Aug</td>
+            <td class="num">Musk ~46%</td>
+            <td>Musk 6.069B (366-day cliff, no early release). Founder + extended ≈ 7.8B, ~60% post-offering</td>
+            <td><span class="vet v-pri">PRIMARY</span><br><span style="font-size:11px;color:var(--muted)">Prospectus: Musk 366th day; 7.8B ≈ 60% after offering</span></td>
+          </tr>
+          <tr>
+            <td class="num">Alphabet stake</td>
+            <td class="num">~6–7.5%</td>
+            <td class="num">size only</td>
+            <td>No public Alphabet-only unlock calendar. Cohort membership undisclosed by date</td>
+            <td><span class="vet v-est">EST. SIZE</span><br><span style="font-size:11px;color:var(--muted)">Secondary/S-1 ownership cites; omit from dated path</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="cap-t">Every tranche is an "up to" ceiling in the prospectus, not an exact count: option exercises, RSU settlement, and affiliate carve-outs move the real figures. The early 7% steps and the 911.5M first release exclude affiliate-held shares, which is why the 59.1M affiliate slice releases on its own Sep 10 date.</p>
+    </details>
+
+    <div class="pie-block" id="float-pies">
+      <p class="mini-h">As of Dec 8, 2026</p>
+      <div class="pie-grid">
+        <div class="pie-card">
+          <h3>Eligible vs still locked</h3>
+          <p class="cap" aria-hidden="true"></p>
+          <div class="pie pie-lock" role="img" aria-label="About 40 percent eligible to trade, about 60 percent still locked into 2027"></div>
+          <ul class="pie-key">
+            <li><i style="background:#6aaed8"></i><span><b>~40%</b> Eligible to trade (standard path free by Dec 8)</span></li>
+            <li><i style="background:#3a4a5c"></i><span><b>~60%</b> Still locked into 2027 (Musk + extended investors)</span></li>
+          </ul>
+        </div>
+        <div class="pie-card">
+          <h3>The locked ~60%</h3>
+          <p class="cap">Not all Musk.</p>
+          <div class="pie pie-locked-split" role="img" aria-label="Of the still locked block, Musk about 46 percent of the company, extended investors about 14 percent"></div>
+          <ul class="pie-key">
+            <li><i style="background:#3a4a5c"></i><span><b>~46%</b> of the company · Musk (366-day lock-up, no early release)</span></li>
+            <li><i style="background:#5a6d82"></i><span><b>~14%</b> of the company · Extended investors (staged releases, ~Feb–Aug 2027)</span></li>
+          </ul>
+        </div>
+        <div class="pie-card">
+          <h3>The eligible ~40%</h3>
+          <p class="cap">Tranche colors: see timeline above.</p>
+          <div class="pie pie-frag" role="img" aria-label="Breakdown of the roughly 40 percent eligible float by release tranche"></div>
+          <ul class="pie-key">
+            <li><i class="k-free"></i><span><b>~5%</b> of the company · Public float at IPO</span></li>
+            <li><i class="k-aug"></i><span><b>~7%</b> of the company · Aug 6 first unlock</span></li>
+            <li><i style="background:rgba(255,152,99,.85)"></i><span><b>~12.9%</b> of the company · Employee steps (5 × 7% of pool + affiliate slice)</span></li>
+            <li><i class="k-q3"></i><span><b>~10%</b> of the company · Q3 earnings chunk</span></li>
+            <li><i class="k-fall"></i><span><b>~2.5%</b> of the company · Dec 8 remainder of standard block</span></li>
+            <li><i class="k-condone"></i><span><b>~3.5%</b> of the company · Conditional piece, free by Dec 8 at latest</span></li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 04 DEMAND SIDE -->
+  <section id="demand">
+    <div class="sec-h"><span class="sec-n">04</span><h2>The buyers who had no choice</h2><a class="anchor" href="#demand" aria-label="Link to this section"></a></div>
+    <p class="lead">While locked shares wait to come free, index funds were being forced to buy.</p>
+
+    <p class="body">On <b>July 7, 2026</b>, SPCX joined the Nasdaq-100 (the index behind funds like QQQ), twenty-five days after debut, after a rule change let big new listings skip the usual wait. Per Nasdaq, more than 200 products track that index with over $800B globally, and the cash index funds among them <i>have</i> to buy. Cash trackers and leveraged wrappers (QLD, TQQQ) took the <b>Jul 6 close, $160.42</b>, as their entry. J.P. Morgan put the Nasdaq-100 piece near <b>$4.3B</b> (an analyst estimate, not a filing). The wider linked complex runs higher. All of it pointed at the same thin ~5% float.</p>
+
+    <div class="candlefig">
+      <h4>Jul 6, 2026</h4>
+      <div class="cf-row">
+        <div class="cf-plot">
+          <div class="cf-line" style="top:41px"></div>
+          <div class="cf-candle" style="top:0">
+            <div class="cf-wick" style="top:4px;height:64px"></div>
+            <div class="cf-body" style="top:14px;height:27px"></div>
+          </div>
+        </div>
+        <div class="cf-ohlc">O <b>165.95</b> · H <b>167.90</b><br>L <b>155.04</b> · <span class="c">C <b>160.42</b></span></div>
+      </div>
+    </div>
+
+    <div class="flag"><b>It did not lift the tape.</b> On inclusion day SPCX fell. The index-inclusion pop itself has faded: the average abnormal return on joining the S&amp;P 500 fell from 7.4% in the 1990s to 0.3% in the past decade (Greenwood and Sammon). "Money that must move" is a price effect that no longer shows up on average. By the verified Jul 21 close of $123.54, that entry was ~23% underwater. Passive funds missed the IPO allocation, then had to buy on a pre-announced date, likely after others had already positioned to sell into that known demand.</div>
+  </section>
+
+  <!-- 05 INTERNAL WORTH / OWNERSHIP -->
+  <section id="ownership">
+    <div class="sec-h"><span class="sec-n">05</span><h2>Internal worth, pre-IPO</h2><a class="anchor" href="#ownership" aria-label="Link to this section"></a></div>
+    <p class="lead">What the locked shares are worth against the $135 launch price, and how the offering fits into the whole company.</p>
+
+    <div class="tbl-scroll">
+      <table>
+        <thead>
+          <tr><th>Slice</th><th>Shares</th><th>@ $135</th><th>Status</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Public offering (Class A sold)</td>
+            <td class="num">555,555,555</td>
+            <td class="num">$75.0B</td>
+            <td><span class="pill p-free">Free · traded</span></td>
+          </tr>
+          <tr>
+            <td>Class A outstanding after IPO</td>
+            <td class="num">7,380,196,910</td>
+            <td class="num">$996B</td>
+            <td><span class="pill p-lock">Mostly locked</span></td>
+          </tr>
+          <tr>
+            <td>Class B outstanding (insider shares, 10 votes each)</td>
+            <td class="num">5,695,668,265</td>
+            <td class="num">$769B</td>
+            <td><span class="pill p-lock">Locked</span></td>
+          </tr>
+          <tr>
+            <td>Total company (A + B)</td>
+            <td class="num">~13,075,865,175</td>
+            <td class="num">~$1.77T</td>
+            <td><span class="pill p-lock">~5% floats</span></td>
+          </tr>
+          <tr>
+            <td>Musk, Class A + Class B</td>
+            <td class="num">6,068,547,515</td>
+            <td class="num">~$819B</td>
+            <td><span class="pill p-lock">Locked → 2027</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="cap-t cap-full">Share counts and offering size from the 424(b)(4) prospectus (Jun 11, 2026). Musk = 849,494,440 Class A + 5,219,053,075 Class B, ~82.4% of voting power. The 555.6M row is the base offering ($75B). With the exercised overallotment, ~639M shares were sold for ~$85.7B in gross proceeds. The separate ~$86B "tradable float" figure is the market value of that float in mid-July (Reuters), which only lands near the raise by coincidence. Dollar figures elsewhere are launch-price ($135) derivations for scale, not market quotes.</p>
+
+    <div class="flag cool"><b>Cumulative, against the $135 launch.</b> At IPO, ~5% (~$86B) trades. The first release (~$123B) in August raises eligible supply to ~$209B, about 2.4x. Through Dec 8, the float reaches ~40% of the company. On ~13B shares that's ~5.2B shares, or <b>~$700B</b> of stock eligible to trade at the launch price. The remaining ~60% (~$1.05T), including Musk, stays locked into 2027, unlocking in stages from ~Feb through ~Aug.</div>
+  </section>
+
+  <!-- 05 PRE-IPO INVESTORS -->
+  <section id="investors">
+    <div class="sec-h"><span class="sec-n">06</span><h2>Who holds the eligible supply</h2><a class="anchor" href="#investors" aria-label="Link to this section"></a></div>
+    <p class="lead">Unlock dates set how much can trade. Sell pressure comes from who holds it. The holders below, the early backers and employees who owned SpaceX before it went public, are ranked by how likely each is to actually sell.</p>
+
+    <div class="tbl-scroll">
+      <table>
+        <thead>
+          <tr><th>Holder</th><th>Type</th><th>Est. stake</th><th>Unlocks in 2026</th><th>Sell odds</th><th>Why</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Elon Musk</td><td>Founder</td><td class="num">~46%</td>
+            <td><span class="pill p-lock">No · to 2027</span></td>
+            <td><span class="pill p-lock">n/a</span></td>
+            <td>Locked to Jun 12, 2027. Out of the 2026 window entirely.</td>
+          </tr>
+          <tr>
+            <td>Alphabet (Google)</td><td>Strategic backer</td><td class="num">~6–7.5%</td>
+            <td><span class="pill p-free">Yes†</span></td>
+            <td><span class="pill p-lo">Low</span></td>
+            <td>Bought in 2015 as a strategic bet, no deadline to sell, can hold as long as it likes.</td>
+          </tr>
+          <tr>
+            <td>Fidelity</td><td>Mutual funds</td><td class="num">~2–10%*</td>
+            <td><span class="pill p-free">Yes†</span></td>
+            <td><span class="pill p-med">Low–med</span></td>
+            <td>Long-term holder. Its sale timing likely tracks its own fund flows more than the lock-up calendar.</td>
+          </tr>
+          <tr>
+            <td>Founders Fund</td><td>Venture fund</td><td class="num">~1.5–3%*</td>
+            <td><span class="pill p-free">Yes</span></td>
+            <td><span class="pill p-hi">High</span></td>
+            <td>Put in ~$20M back in 2008, one of the largest paper gains in venture history. The fund is likely near the end of its life, which would push it to cash out and hand money back to its own investors.</td>
+          </tr>
+          <tr>
+            <td>Sequoia Capital</td><td>Venture fund</td><td class="num">undisclosed</td>
+            <td><span class="pill p-free">Yes</span></td>
+            <td><span class="pill p-hi">High</span></td>
+            <td>Like Founders Fund, an older fund that likely faces the same pressure to return money eventually.</td>
+          </tr>
+          <tr>
+            <td>a16z</td><td>Venture fund</td><td class="num">undisclosed</td>
+            <td><span class="pill p-free">Yes</span></td>
+            <td><span class="pill p-med">Med–high</span></td>
+            <td>Invested more recently (2023), so less pressure to sell soon.</td>
+          </tr>
+          <tr>
+            <td>Gulf sovereign funds</td><td>State fund</td><td class="num">undisclosed</td>
+            <td><span class="pill p-free">Yes</span></td>
+            <td><span class="pill p-med">Low–med</span></td>
+            <td>Saudi/UAE funds confirmed as backers, sizes not public. No deadline forcing them to sell.</td>
+          </tr>
+          <tr>
+            <td>Employees</td><td>Employee stock</td><td class="num">inside 911.5M</td>
+            <td><span class="pill p-free">Yes</span></td>
+            <td><span class="pill p-med">Med–high</span></td>
+            <td>An estimated ~4,400 paper millionaires diversifying (analyst tally via NYT/Fortune, not a filing), but releases are staggered in stages of ~2.4–2.5% of the company each.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="cap-t cap-full">* Percentages marked with an asterisk are secondary-source estimates and conflict across outlets, so treat as ranges. The definitive figures live in the S-1 "Security Ownership" table (EDGAR, CIK 1181412). Musk's ~46% is derived from the prospectus share counts (6,068,547,515 of 13,075,865,175). The ~82.4% voting figure is from the prospectus. The "Sell odds" column and the fund-life reasoning (fund age, cash-out pressure, entry vintage such as Founders Fund's 2008 stake or a16z's 2023 entry) are editorial estimates synthesized from venture context, not stated in any filing or single cited source. † Cohort assumed: outside the employee tranches named in the prospectus ladder, filings do not say which holders sit in the standard 180-day block and which are in the extended group that unlocks across 2027. Alphabet and Fidelity are shown as 2026 on that assumption.</p>
+
+    <div class="flag"><b>What the flat "flood" story misses.</b> The biggest locked blocks (Musk, Alphabet, Fidelity) are the least likely to sell, so realized selling is probably smaller than the "$123B eligible" headline implies.</div>
+
+    <div class="pie-block" id="sell-risk">
+      <div class="pie-card oddscard">
+        <h3>Sell pressure across the 2026 new supply <a class="anchor" href="#sell-risk" aria-label="Link to this chart"></a></h3>
+        <p class="oddssub">The bar is the <b>~35% of the company freeing during 2026</b>, taken as its own 100%. The other ~5% floated at IPO, so eligible float reaches ~40% by Dec 8. Each width is that holder's share <b>of the new supply</b>, colored by sell odds.</p>
+        <div class="track" role="img" aria-label="Stake in the 2026 new supply taken as 100 percent, weighted by estimated size, ordered low to high sell odds with an undisclosed-size remainder shown first: undisclosed remainder about 20 percent, then low 20 percent, low-med 17 percent, med-high 37 percent, high 6 percent">
+          <div class="fseg rs-unk" style="width:20%"></div>
+          <div class="fseg rs-lo" style="width:20%"></div>
+          <div class="fseg rs-lomed" style="width:17.1%"></div>
+          <div class="fseg rs-medhi" style="width:37.2%"></div>
+          <div class="fseg rs-hi" style="width:5.7%"></div>
+        </div>
+        <ul class="pie-key">
+          <li><i class="rs-lo"></i><span><b>20%</b> Low · Alphabet <small>~7% of company</small></span></li>
+          <li><i class="rs-lomed"></i><span><b>17%</b> Low–med · Fidelity <small>~6%* of company</small></span></li>
+          <li><i class="rs-medhi"></i><span><b>37%</b> Med–high · employees <small>~13% of company</small></span></li>
+          <li><i class="rs-hi"></i><span><b>6%</b> High · Founders Fund <small>~2%* of company</small></span></li>
+          <li><i class="rs-unk"></i><span>Remainder to ~35% · Sequoia (High), a16z (Med–high), Gulf funds (Low–med), others <small>~7% of company. Individual sizes undisclosed, so this slice is not weighted by odds</small></span></li>
+        </ul>
+        <p class="oddssub" style="margin-top:12px;margin-bottom:0">Holders rated medium-or-higher control <b>~43%</b> of the 2026 new supply (employees plus Founders Fund). That is capacity to sell, not a forecast that it sells. * asterisked sizes are secondary-source estimates. † Alphabet and Fidelity assumed in the standard 180-day cohort, per the table note.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 07 CUSHIONS -->
+  <section id="cushions">
+    <div class="sec-h"><span class="sec-n">07</span><h2>What cushions the oversupply</h2><a class="anchor" href="#cushions" aria-label="Link to this section"></a></div>
+
+    <div class="flag cool"><b>What history says.</b> In the classic study of 1,948 IPO lock-up expiries (Field and Hanka, 2001), unlock days bruised prices, they did not crash them. The average move was a three-day drop of about 1.5%, even though every expiry date was known in advance. The lasting change was volume: a permanent ~40% rise once shares came free. The pressure was concentrated where this page ranks it High: venture-backed firms dropped more, and venture funds sold harder than executives. Base rate only: the sample is 1988–1997 single-cliff lock-ups on far smaller companies, and SPCX's staggered design spreads the effect across many dates.</div>
+
+    <p class="lead">Ranked by likely impact, highest first.</p>
+    <ol class="reasons">
+      <li><span class="rn">1</span><b>Not every unlocked share is equal supply.</b> Headline numbers count every freed share the same. Early pressure is likelier to be employee and older-venture selling than Alphabet-scale exits, so realized August supply should land below the ~$123B ceiling.</li>
+      <li><span class="rn">2</span><b>The biggest stakes are the least likely to move.</b> Musk, Alphabet, and Fidelity dominate the locked total and have no forced timeline. The likeliest sellers, older venture funds and diversifying employees, hold the smaller slices.</li>
+      <li><span class="rn">3</span><b>Patient sellers pace themselves.</b> A large holder dumping into a thin float wrecks their own exit price, so rational exits usually dribble out over months. Self-interest tends to throttle the flow, unless fund mechanics force a seller's hand.</li>
+      <li><span class="rn">4</span><b>The structure staggers supply by contract.</b> Releases arrive in stages through Dec 8, with one price-conditional piece only, so the market prices each tranche instead of absorbing one shock.</li>
+      <li><span class="rn">5</span><b>Institutional buyers can absorb size, at their price.</b> Fewer, larger buyers sit opposite many small employee sellers and can take blocks off the visible book. Capacity is proven. Willingness depends on where their valuation work clears, which may be below the current print.</li>
+      <li><span class="rn">6</span><b>Passive demand grows with the float.</b> Index funds must buy mechanically, and where index weights track the tradable float, unlocks themselves can raise the weight and force incremental buying at rebalances. July 7 showed inclusion is no guaranteed lift. CoinDesk reported that prior big adds (Palantir, Strategy) peaked around or before their inclusion dates, and whether the Nasdaq-100's method raises SPCX's weight on unlocks is unverified.</li>
+      <li><span class="rn">7</span><b>A conviction tier waits below.</b> Thesis buyers exist: ARK has bought SPCX on the way down and keeps buying dips. That's a sentiment floor and a next-day-verifiable signal (ARK publishes its ETF trades daily), not absorption capacity.</li>
+    </ol>
+
+    <div class="flag"><b>What this page does not cover.</b> This maps supply timing, not price. Between unlock dates the tape often moves on positioning left out here: short interest and the cost to borrow, options open interest and dealer hedging, the float-adjusted index weight, and how deep real demand is. On a thin ~5% float, those forces can dominate for weeks while the supply schedule sits unchanged. Read this as the map of <i>when</i> supply structurally shifts, not a forecast of where the price goes. The unlock dates matter most as the moments that map meets positioning: a big block freeing into a heavily shorted, thin float is when the squeeze-prone regime can break.</div>
+  </section>
+
+  <!-- 08 WHAT TO WATCH -->
+  <section id="watch">
+    <div class="sec-h"><span class="sec-n">08</span><h2>What to watch</h2><a class="anchor" href="#watch" aria-label="Link to this section"></a></div>
+    <p class="lead">The few signals that actually move the supply picture.</p>
+    <ol class="reasons">
+      <li><span class="rn">1</span><b>The Aug 4 report itself.</b> SpaceX confirmed on Jul 20 that Q2 results land after the close on Tuesday, Aug 4, with a webcast to follow. That locks the first release (911.5M shares, ~7% of the company) to Thursday, Aug 6.</li>
+      <li><span class="rn">2</span><b>The $175.50 line, now on a clock.</b> The extra 10% of locked shares fires only if the stock closes at or above $175.50 on 5 of the 10 trading days ending Aug 4, so the window is Jul 22 to Aug 4. From below the $135 IPO price that needs a rally of more than 30% inside ten sessions, so treat it as shut.</li>
+      <li><span class="rn">3</span><b>Volume on Aug 6.</b> First read on whether the unlocked mix is mostly diversifying sellers or quiet strategic holders.</li>
+      <li><span class="rn">4</span><b>Dec 8, 2026.</b> The standard lock-up fully expires and the float reaches roughly 40%. After that, extended investors' ~14% unlocks in six stages from about February 2027, and Musk's ~46% frees on June 12, 2027, the 366-day cliff.</li>
+    </ol>
+  </section>
+
+  <!-- REFERENCES -->
+  <section class="src" id="references">
+    <h2>References <a class="anchor" href="#references" aria-label="Link to this section"></a></h2>
+    <p class="lead">Primary filings first, then reputable reporting and research.</p>
+    <div class="srcgrid">
+      <div class="srcrow">
+        <span class="srctag t-primary">PRIMARY</span>
+        <div><a href="https://www.sec.gov/Archives/edgar/data/1181412/000162828026042639/spaceexplorationtechnologi.htm" target="_blank" rel="noopener">SpaceX 424(b)(4) final prospectus, SEC EDGAR</a>
+        <span class="m">Offering size, $135 price, share counts, Musk holdings, voting power, directed-share carve-out. Dated Jun 11, 2026.</span></div>
+      </div>
+      <div class="srcrow">
+        <span class="srctag t-primary">PRIMARY</span>
+        <div><a href="https://www.sec.gov/Archives/edgar/data/1181412/000162828026036936/spaceexplorationtechnologi.htm" target="_blank" rel="noopener">SpaceX Form S-1, SEC EDGAR</a>
+        <span class="m">Registration statement (filed May 20, 2026). Security-ownership table, lock-up terms, risk factors. CIK 1181412.</span></div>
+      </div>
+      <div class="srcrow">
+        <span class="srctag t-news">NEWS</span>
+        <div><a href="https://www.reuters.com/legal/transactional/spacex-selloff-an-ominous-sign-lockup-expiry-looms-2026-07-16/" target="_blank" rel="noopener">Reuters: SpaceX selloff an ominous sign as lockup expiry looms</a>
+        <span class="q">"employees and some early investors will be free to sell 911.5 million shares"</span>
+        <span class="m">First release size, ~$123B vs ~$86B float, $175.50 trigger, ~40% eligible by Dec 8 / ~60% locked to mid-2027. Float-path framing credited in §03. Jul 16, 2026.</span></div>
+      </div>
+      <div class="srcrow">
+        <span class="srctag t-news">NEWS</span>
+        <div><a href="https://www.cnbc.com/2026/07/21/spacex-spcx-earnings-lock-up-expiration.html" target="_blank" rel="noopener">CNBC: SpaceX sets earnings date that triggers first big share unlock</a>
+        <span class="q">"sell 20% of their eligible locked-up stock"</span>
+        <span class="m">Aug 4 report confirmed (announced Jul 20), Aug 6 unlock. Jul 21, 2026.</span></div>
+      </div>
+      <div class="srcrow">
+        <span class="srctag t-news">NEWS</span>
+        <div><a href="https://www.axios.com/2026/07/17/spacex-lockup-stock-selloff" target="_blank" rel="noopener">Axios: SpaceX falls under IPO price as lockup expirations loom</a>
+        <span class="q">"the first lockup expiration could roughly quadruple the supply of tradable SpaceX shares"</span>
+        <span class="m">Recent price action, sub-IPO close. Jul 17, 2026. Its "quadruple" is Axios's headline framing. This page's own math puts the first unlock nearer ~2.4x the existing float (911.5M added to ~639M).</span></div>
+      </div>
+      <div class="srcrow">
+        <span class="srctag t-news">NEWS</span>
+        <div><a href="https://www.investing.com/news/stock-market-news/spacex-to-join-nasdaq-100-on-july-7-set-for-billions-in-passive-fund-inflows-4763940" target="_blank" rel="noopener">Investing.com / Reuters: SpaceX to join Nasdaq-100 on July 7</a>
+        <span class="q">"J.P. Morgan estimates the inclusion could generate about $4.3 billion in passive inflows"</span>
+        <span class="m">Inclusion date, fast-track rule change. Jun 27, 2026.</span></div>
+      </div>
+      <div class="srcrow">
+        <span class="srctag t-primary">PRIMARY</span>
+        <div><a href="https://ir.nasdaq.com/news-releases/news-release-details/space-exploration-technologies-corporation-join-nasdaq-100" target="_blank" rel="noopener">Nasdaq: SPCX to join the Nasdaq-100 Index beginning July 7, 2026</a>
+        <span class="q">"tracked by more than 200 investment products with over $800 billion"</span>
+        <span class="m">Index provider's own release. Inclusion effective before open Jul 7. Scale of the tracking complex.</span></div>
+      </div>
+      <div class="srcrow">
+        <span class="srctag t-news">NEWS</span>
+        <div><a href="https://www.etf.com/sections/news/spacex-joins-nasdaq-100-july-7-here-are-etfs-feel-it-most" target="_blank" rel="noopener">ETF.com: The ETFs that feel the SPCX inclusion most</a>
+        <span class="q">"TQQQ delivers 3x the daily return of the Nasdaq-100"</span>
+        <span class="m">Named trackers beyond QQQ: QLD (2x), TQQQ (3x) and how leveraged wrappers take notional exposure.</span></div>
+      </div>
+      <div class="srcrow">
+        <span class="srctag t-news">NEWS</span>
+        <div><a href="https://www.coindesk.com/markets/2026/07/06/spacex-s-nasdaq-100-inclusion-comes-with-a-historical-warning" target="_blank" rel="noopener">CoinDesk: SpaceX joins the Nasdaq 100, but history suggests caution</a>
+        <span class="q">"previous high-profile Nasdaq-100 additions, including Palantir and Strategy, peaked around or before their inclusion dates"</span>
+        <span class="m">Inclusion is not a reliable catalyst. Named precedent that index membership can mark a top, not a launch. Jul 6, 2026.</span></div>
+      </div>
+      <div class="srcrow">
+        <span class="srctag t-news">NEWS</span>
+        <div><a href="https://www.fool.com/investing/2026/07/07/spacex-insider-lockups-start-expiring-in-july-here/" target="_blank" rel="noopener">Motley Fool: Insider lockups start expiring in July</a>
+        <span class="q">"The July expiration is a signal, not a cliff"</span>
+        <span class="m">Staggered vs single-cliff design. Musk locked to 2027.</span></div>
+      </div>
+      <div class="srcrow">
+        <span class="srctag t-news">NEWS</span>
+        <div><a href="https://www.fool.com/investing/2026/07/06/heres-who-owns-the-most-spacex-stock/" target="_blank" rel="noopener">Motley Fool: Who owns the most SpaceX stock</a>
+        <span class="q">"Alphabet ... owns close to 7% of SpaceX"</span>
+        <span class="m">Early-investor context. Estimates, not filings.</span></div>
+      </div>
+      <div class="srcrow">
+        <span class="srctag t-study">RESEARCH</span>
+        <div><a href="https://onlinelibrary.wiley.com/doi/10.1111/jofi.13410" target="_blank" rel="noopener">Greenwood &amp; Sammon: The Disappearing Index Effect, Journal of Finance (2025)</a>
+        <span class="q">"the abnormal return associated with a stock being added to the S&amp;P 500 has fallen from an average of 7.4% in the 1990s to 0.3% over the past decade"</span>
+        <span class="m">Basis for the faded-inclusion-pop line in §04.</span></div>
+      </div>
+      <div class="srcrow">
+        <span class="srctag t-study">RESEARCH</span>
+        <div><a href="https://onlinelibrary.wiley.com/doi/10.1111/0022-1082.00334" target="_blank" rel="noopener">Field &amp; Hanka: The Expiration of IPO Share Lockups, Journal of Finance (2001)</a>
+        <span class="q">"a permanent 40 percent increase in average trading volume, and a statistically prominent three-day abnormal return of −1.5 percent"</span>
+        <span class="m">1,948 lock-up expiries, 1988–1997. Basis for the "What history says" note in §07.</span></div>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <p class="mono">© 2026 @ischyron</p>
+  </footer>
+
+</div>
+</body>
+</html>
